@@ -1,0 +1,37 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Admin Panel - SmartWater Ghana</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>Admin Dashboard</h1>
+
+    <h2>Household Overview</h2>
+    <table>
+      <thead>
+        <tr>
+          <th>House</th>
+          <th>Usage (L)</th>
+          <th>Status</th>
+          <th>Alerts</th>
+        </tr>
+      </thead>
+      <tbody id="householdTable"></tbody>
+    </table>
+
+    <h2>Automation Panel</h2>
+    <button onclick="scheduleRelease()">Schedule Water Release</button>
+    <button onclick="triggerValve()">Trigger Shutoff Valve</button>
+
+    <h2>Feedback Summary</h2>
+    <p>“Can we get SMS alerts for low tank levels?” – Ama</p>
+    <p>“Add more payment options.” – Kojo</p>
+  </div>
+
+  <script src="admin.js"></script>
+</body>
+</html>
