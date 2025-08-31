@@ -48,5 +48,39 @@
   </div>
 
   <script src="script.js"></script>
+<form id="feedbackForm">
+  <label for="name">Your Name:</label><br />
+  <input type="text" id="name" name="name" /><br />
+
+  <label for="message">Your Feedback:</label><br />
+  <textarea id="message" name="message"></textarea><br />
+
+  <button type="submit">Submit</button>
+</form>
+
+<script>
+  document.getElementById("feedbackForm").addEventListener("submit", function(e) {
+    e.preventDefault();
+    const name = document.getElementById("name").value;
+    const message = document.getElementById("message").value;
+    alert("Thanks, " + name + "! Your feedback has been received.");
+    // Optional: Save to Firebase or localStorage
+  });
+</script>
+
+<div class="payment">
+  <h2>💳 Pay Water Bill</h2>
+  <button onclick="pay('MTN')">MTN</button>
+  <button onclick="pay('Vodafone Cash')">Vodafone Cash</button>
+  <button onclick="pay('AirtelTigo')">AirtelTigo</button>
+</div>
+
+<script>
+  function pay(network) {
+    alert("Redirecting to " + network + " payment portal...");
+    // Simulate redirect or integrate with real API later
+  }
+</script>
+
 </body>
 </html>
