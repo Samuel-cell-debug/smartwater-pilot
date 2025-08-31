@@ -1,24 +1,57 @@
-function updateTankLevel(level) {
-  try {
-    const fill = document.getElementById("tankFill");
-    const label = document.getElementById("tankPercent");
+// Dark mode toggle
+document.getElementById("darkToggle").addEventListener("click", () => {
+  document.body.classList.toggle("dark-mode");
+});
 
-    fill.style.height = `${level}%`;
-    label.textContent = `${level}% Full`;
-  } catch (error) {
-    console.error("Tank update failed:", error);
+// Chart.js setup
+const ctx = document.getElementById('waterChart').getContext('2d');
+const waterChart = new Chart(ctx, {
+  type: 'line',
+  data: {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [{
+      label: 'Water Usage (Liters)',
+      data: [120, 90, 150, 80, 130, 100, 110],
+      borderColor: '#0077cc',
+      backgroundColor: 'rgba(0, 119, 204, 0.2)',
+      fill: true,
+      tension: 0.3
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: {
+        beginAtZero: true
+      }
+    }
   }
-}
+});
 
-function simulateLeak() {
-  const leakDetected = Math.random() < 0.2;
-  const alertBox = document.getElementById("leakAlert");
+document.getElementById('darkModeToggle').addEventListener('change', function () {
+  document.body.classList.toggle('dark-mode');
+});
 
-  alertBox.classList.toggle("hidden", !leakDetected);
-}
+document.getElementById('feedbackForm').addEventListener('submit', function (e) {
+  e.preventDefault();
+  alert('Thank you for your feedback!');
+});
 
-function simulateUpdate() {
-  const randomLevel = Math.floor(Math.random() * 101);
-  updateTankLevel(randomLevel);
-  simulateLeak();
-}
+const ctx = document.getElementById('waterChart').getContext('2d');
+new Chart(ctx, {
+  type: 'bar',
+  data: {
+    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
+    datasets: [{
+      label: 'Liters Used',
+      data: [120, 90, 100, 80, 130, 70, 110],
+      backgroundColor: 'rgba(54, 162, 235, 0.6)'
+    }]
+  },
+  options: {
+    responsive: true,
+    scales: {
+      y: { beginAtZero: true }
+    }
+  }
+});
