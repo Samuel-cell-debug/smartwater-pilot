@@ -1,24 +1,24 @@
-function showTrends() {
-  alert("Usage trends coming soon!");
+function updateTankLevel(level) {
+  try {
+    const fill = document.getElementById("tankFill");
+    const label = document.getElementById("tankPercent");
+
+    fill.style.height = `${level}%`;
+    label.textContent = `${level}% Full`;
+  } catch (error) {
+    console.error("Tank update failed:", error);
+  }
 }
 
-function viewLeakTips() {
-  alert("Check pipes, taps, and report to support.");
+function simulateLeak() {
+  const leakDetected = Math.random() < 0.2;
+  const alertBox = document.getElementById("leakAlert");
+
+  alertBox.classList.toggle("hidden", !leakDetected);
 }
 
-// Simulate dynamic tank level
-const tankFill = document.getElementById("tankFill");
-const tankPercent = document.getElementById("tankPercent");
-
-let level = 60;
-tankFill.style.width = level + "%";
-tankPercent.textContent = level + "% Full";
-
-function simulateUsage() {
-  const tankLevel = Math.floor(Math.random() * 100); // %
-  const leakDetected = Math.random() < 0.1; // 10% chance
-
-  document.getElementById("tankLevel").innerText = tankLevel + "%";
-  document.getElementById("leakAlert").innerText = leakDetected ? "🚨 Leak Detected!" : "✅ No Leak";
+function simulateUpdate() {
+  const randomLevel = Math.floor(Math.random() * 101);
+  updateTankLevel(randomLevel);
+  simulateLeak();
 }
-setInterval(simulateUsage, 5000); // updates every 5 seconds

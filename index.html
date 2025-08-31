@@ -3,84 +3,30 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SmartWater Ghana</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Smart Water Dashboard</title>
+  <link rel="stylesheet" href="styles.css" />
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
-  <div class="container">
-    <h1>SmartWater Ghana</h1>
-    
-    <div class="tank-level">
-      <h2>Tank Level</h2>
-      <div class="bar"><div class="fill" id="tankFill"></div></div>
-      <p id="tankPercent">60% Full</p>
-    </div>
+  <header>
+    <h1>Smart Water Usage Dashboard</h1>
+    <button id="darkToggle">🌙 Toggle Dark Mode</button>
+  </header>
 
-    <div class="usage">
-      <h2>Daily Usage</h2>
-      <p id="dailyUsage">110 Liters</p>
-      <button onclick="showTrends()">📊 View Usage Trends</button>
-    </div>
+  <section class="chart-section">
+    <h2>Weekly Water Usage</h2>
+    <canvas id="waterChart" width="400" height="200"></canvas>
+  </section>
 
-    <div class="alert" id="leakAlert">
-      ⚠️ Leak Detected! <button onclick="viewLeakTips()">Tap for Help</button>
-    </div>
-
-    <div class="payment">
-      <h2>Pay Water Bill</h2>
-      <button>MTN</button>
-      <button>Vodafone Cash</button>
-      <button>AirtelTigo</button>
-    </div>
-
-    <div class="tips">
-      <h2>💡 Save Water</h2>
-      <ul>
-        <li>Fix leaky taps</li>
-        <li>Use buckets instead of hoses</li>
-      </ul>
-    </div>
-
-    <div class="support">
-      <h2>📞 Contact Support</h2>
-      <a href="https://wa.me/233XXXXXXXXX">WhatsApp Us</a>
-    </div>
-  </div>
+  <section class="feedback-section">
+    <h2>We Value Your Feedback</h2>
+    <form action="https://formspree.io/f/yourFormID" method="POST">
+      <label for="message">Your thoughts:</label><br />
+      <textarea name="message" id="message" rows="4" required></textarea><br />
+      <button type="submit">Send Feedback</button>
+    </form>
+  </section>
 
   <script src="script.js"></script>
-<form id="feedbackForm">
-  <label for="name">Your Name:</label><br />
-  <input type="text" id="name" name="name" /><br />
-
-  <label for="message">Your Feedback:</label><br />
-  <textarea id="message" name="message"></textarea><br />
-
-  <button type="submit">Submit</button>
-</form>
-
-<script>
-  document.getElementById("feedbackForm").addEventListener("submit", function(e) {
-    e.preventDefault();
-    const name = document.getElementById("name").value;
-    const message = document.getElementById("message").value;
-    alert("Thanks, " + name + "! Your feedback has been received.");
-    // Optional: Save to Firebase or localStorage
-  });
-</script>
-
-<div class="payment">
-  <h2>💳 Pay Water Bill</h2>
-  <button onclick="pay('MTN')">MTN</button>
-  <button onclick="pay('Vodafone Cash')">Vodafone Cash</button>
-  <button onclick="pay('AirtelTigo')">AirtelTigo</button>
-</div>
-
-<script>
-  function pay(network) {
-    alert("Redirecting to " + network + " payment portal...");
-    // Simulate redirect or integrate with real API later
-  }
-</script>
-
 </body>
 </html>
