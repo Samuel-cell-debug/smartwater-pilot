@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SmartWater Ghana</title>
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+  <div class="container">
+    <h1>SmartWater Ghana</h1>
+    
+    <div class="tank-level">
+      <h2>Tank Level</h2>
+      <div class="bar"><div class="fill" id="tankFill"></div></div>
+      <p id="tankPercent">60% Full</p>
+    </div>
+
+    <div class="usage">
+      <h2>Daily Usage</h2>
+      <p id="dailyUsage">110 Liters</p>
+      <button onclick="showTrends()">📊 View Usage Trends</button>
+    </div>
+
+    <div class="alert" id="leakAlert">
+      ⚠️ Leak Detected! <button onclick="viewLeakTips()">Tap for Help</button>
+    </div>
+
+    <div class="payment">
+      <h2>Pay Water Bill</h2>
+      <button>MTN</button>
+      <button>Vodafone Cash</button>
+      <button>AirtelTigo</button>
+    </div>
+
+    <div class="tips">
+      <h2>💡 Save Water</h2>
+      <ul>
+        <li>Fix leaky taps</li>
+        <li>Use buckets instead of hoses</li>
+      </ul>
+    </div>
+
+    <div class="support">
+      <h2>📞 Contact Support</h2>
+      <a href="https://wa.me/233XXXXXXXXX">WhatsApp Us</a>
+    </div>
+  </div>
+
+  <script src="script.js"></script>
+</body>
+</html>
