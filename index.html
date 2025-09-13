@@ -1,13 +1,11 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Smart Water Dashboard</title>
-  <link rel="stylesheet" href="styles.css" />
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <header>
@@ -22,24 +20,18 @@
 
   <section class="feedback-section">
     <h2>We Value Your Feedback</h2>
-    <form action="https://formspree.io/f/yourFormID" method="POST">
+    <form id="feedbackForm">
       <label for="message">Your thoughts:</label><br />
       <textarea name="message" id="message" rows="4" required></textarea><br />
       <button type="submit">Send Feedback</button>
     </form>
   </section>
 
+  <label class="switch">
+    <input type="checkbox" id="darkModeToggle">
+    <span class="slider round"></span>
+  </label>
+
   <script src="script.js"></script>
-<canvas id="waterChart" width="400" height="200"></canvas>
-<label class="switch">
-  <input type="checkbox" id="darkModeToggle">
-  <span class="slider round"></span>
-</label>
-
-<form id="feedbackForm">
-  <textarea placeholder="Share your thoughts..." rows="4"></textarea>
-  <button type="submit">Submit</button>
-</form>
-
 </body>
 </html>
