@@ -28,30 +28,11 @@ const waterChart = new Chart(ctx, {
   }
 });
 
-document.getElementById('darkModeToggle').addEventListener('change', function () {
+document.getElementById('darkModeToggle').addEventListener('change', function() {
   document.body.classList.toggle('dark-mode');
 });
 
-document.getElementById('feedbackForm').addEventListener('submit', function (e) {
+document.getElementById('feedbackForm').addEventListener('submit', function(e) {
   e.preventDefault();
   alert('Thank you for your feedback!');
-});
-
-const ctx = document.getElementById('waterChart').getContext('2d');
-new Chart(ctx, {
-  type: 'bar',
-  data: {
-    labels: ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'],
-    datasets: [{
-      label: 'Liters Used',
-      data: [120, 90, 100, 80, 130, 70, 110],
-      backgroundColor: 'rgba(54, 162, 235, 0.6)'
-    }]
-  },
-  options: {
-    responsive: true,
-    scales: {
-      y: { beginAtZero: true }
-    }
-  }
 });
