@@ -1,36 +1,68 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Smart Water Dashboard</title>
+  <title>Smart Water Ghana Pilot Dashboard</title>
   <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <header>
-    <h1>Smart Water Usage Dashboard</h1>
-    <button id="darkToggle">🌙 Toggle Dark Mode</button>
-  </header>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Smart Water Ghana</p>
+        <h1>Pilot Dashboard</h1>
+        <p class="hero-copy">Empowering communities with affordable, scalable, and dignified water solutions.</p>
+      </div>
+    </header>
 
-  <section class="chart-section">
-    <h2>Weekly Water Usage</h2>
-    <canvas id="waterChart" width="400" height="200"></canvas>
-  </section>
+    <main class="grid">
+      <section class="card usage-card">
+        <h2>Real-time Household Usage</h2>
+        <p class="metric" id="currentUsage">-- L / hr</p>
+        <p class="subtext">Last update: <span id="usageTimestamp">--</span></p>
+        <div class="usage-chart">
+          <h3>7-day usage trend</h3>
+          <ul id="usageTrend" class="trend-list"></ul>
+        </div>
+      </section>
 
-  <section class="feedback-section">
-    <h2>We Value Your Feedback</h2>
-    <form id="feedbackForm">
-      <label for="message">Your thoughts:</label><br />
-      <textarea name="message" id="message" rows="4" required></textarea><br />
-      <button type="submit">Send Feedback</button>
-    </form>
-  </section>
+      <section class="card alert-card">
+        <h2>Leak Alerts</h2>
+        <div id="alertContent" class="alert-panel alert-clear">
+          <p class="alert-state">No active alerts. Monitoring normal flow.</p>
+        </div>
+        <button id="simulateLeak" class="secondary">Simulate Leak</button>
+      </section>
 
-  <label class="switch">
-    <input type="checkbox" id="darkModeToggle">
-    <span class="slider round"></span>
-  </label>
+      <section class="card payment-card">
+        <h2>Mobile Money Payment</h2>
+        <p>Keep service active by sending a quick Mobile Money payment.</p>
+        <button id="paymentBtn">Pay with Mobile Money</button>
+      </section>
+
+      <section class="card feedback-card">
+        <h2>Pilot User Feedback</h2>
+        <form id="feedbackForm">
+          <label for="name">Name</label>
+          <input type="text" id="name" name="name" placeholder="Your name" required />
+
+          <label for="email">Email</label>
+          <input type="email" id="email" name="email" placeholder="you@example.com" required />
+
+          <label for="message">Message</label>
+          <textarea id="message" name="message" rows="4" placeholder="Share your experience" required></textarea>
+
+          <button type="submit">Submit Feedback</button>
+        </form>
+        <div id="feedbackMessage" class="info-message hidden"></div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <p>Smart Water Ghana | Community pilot insights for better water management.</p>
+    </footer>
+  </div>
 
   <script src="script.js"></script>
 </body>

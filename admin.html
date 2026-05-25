@@ -3,35 +3,54 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>Admin Panel - SmartWater Ghana</title>
-  <link rel="stylesheet" href="style.css" />
+  <title>Admin Panel - Smart Water Ghana</title>
+  <link rel="stylesheet" href="styles.css" />
 </head>
 <body>
-  <div class="container">
-    <h1>Admin Dashboard</h1>
+  <div class="page-shell">
+    <header class="hero">
+      <div>
+        <p class="eyebrow">Smart Water Ghana</p>
+        <h1>Admin Panel</h1>
+        <p class="hero-copy">Backend management for the pilot dashboard, household oversight, and system alerts.</p>
+      </div>
+    </header>
 
-    <h2>Household Overview</h2>
-    <table>
-      <thead>
-        <tr>
-          <th>House</th>
-          <th>Usage (L)</th>
-          <th>Status</th>
-          <th>Alerts</th>
-        </tr>
-      </thead>
-      <tbody id="householdTable"></tbody>
-    </table>
+    <main class="grid">
+      <section class="card">
+        <h2>Household Management</h2>
+        <p class="subtext">Manage pilot households and review usage patterns.</p>
+        <div class="button-row">
+          <button type="button">Add Household</button>
+          <button type="button">View Usage Reports</button>
+        </div>
+        <div class="placeholder-box">
+          <p><strong>Household list</strong> will appear here once connected to the backend.</p>
+        </div>
+      </section>
 
-    <h2>Automation Panel</h2>
-    <button onclick="scheduleRelease()">Schedule Water Release</button>
-    <button onclick="triggerValve()">Trigger Shutoff Valve</button>
+      <section class="card">
+        <h2>System Alerts</h2>
+        <p class="subtext">Monitor active alerts and investigate anomalies.</p>
+        <div class="alert-panel alert-clear">
+          <p class="alert-state">No active system alerts at this time.</p>
+        </div>
+        <button class="secondary" type="button">Refresh Alerts</button>
+      </section>
+    </main>
 
-    <h2>Feedback Summary</h2>
-    <p>“Can we get SMS alerts for low tank levels?” – Ama</p>
-    <p>“Add more payment options.” – Kojo</p>
+    <section class="card" style="margin-top: 24px;">
+      <h2>Admin Actions</h2>
+      <div class="button-row">
+        <button type="button">Reset Pilot Devices</button>
+        <button class="secondary" type="button">Export Alerts</button>
+      </div>
+      <p class="subtext">Placeholder actions for future admin workflows.</p>
+    </section>
+
+    <footer class="footer">
+      <p>Smart Water Ghana | Admin panel for a dignified, tech-enabled water pilot.</p>
+    </footer>
   </div>
-
-  <script src="admin.js"></script>
 </body>
 </html>
