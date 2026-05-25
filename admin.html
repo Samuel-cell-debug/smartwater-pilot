@@ -21,21 +21,24 @@
         <h2>Household Management</h2>
         <p class="subtext">Manage pilot households and review usage patterns.</p>
         <div class="button-row">
-          <button type="button">Add Household</button>
-          <button type="button">View Usage Reports</button>
+          <button id="addHouseholdBtn" type="button">Add Household</button>
+          <button id="viewReportsBtn" type="button">View Usage Reports</button>
         </div>
-        <div class="placeholder-box">
+        <div id="householdContainer" class="placeholder-box">
           <p><strong>Household list</strong> will appear here once connected to the backend.</p>
+        </div>
+        <div id="householdReports" class="placeholder-box" style="margin-top: 18px;">
+          <p><strong>Usage reports</strong> will appear here once households are available.</p>
         </div>
       </section>
 
       <section class="card">
         <h2>System Alerts</h2>
         <p class="subtext">Monitor active alerts and investigate anomalies.</p>
-        <div class="alert-panel alert-clear">
+        <div id="systemAlerts" class="alert-panel alert-clear">
           <p class="alert-state">No active system alerts at this time.</p>
         </div>
-        <button class="secondary" type="button">Refresh Alerts</button>
+        <button id="refreshAlertsBtn" class="secondary" type="button">Refresh Alerts</button>
       </section>
     </main>
 
@@ -52,5 +55,6 @@
       <p>Smart Water Ghana | Admin panel for a dignified, tech-enabled water pilot.</p>
     </footer>
   </div>
+  <script src="app.js"></script>
 </body>
 </html>

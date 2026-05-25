@@ -76,3 +76,107 @@ renderTrend();
 updateUsage();
 setInterval(updateUsage, 5000);
 setTimeout(showLeakAlert, 9000);
+
+const addHouseholdBtn = document.getElementById('addHouseholdBtn');
+const viewReportsBtn = document.getElementById('viewReportsBtn');
+const refreshAlertsBtn = document.getElementById('refreshAlertsBtn');
+const householdContainer = document.getElementById('householdContainer');
+const householdReports = document.getElementById('householdReports');
+const systemAlertsEl = document.getElementById('systemAlerts');
+
+const adminHouseholds = [
+  { name: 'Household A', usageHistory: [120, 130, 115, 140], status: 'Normal', alert: 'None' },
+  { name: 'Household B', usageHistory: [200, 215, 190, 230], status: 'High Usage', alert: 'Review' },
+  { name: 'Household C', usageHistory: [85, 95, 88, 92], status: 'Low Tank', alert: 'Low Level' }
+];
+
+const adminAlerts = [
+  'Leak detected in Bathroom of Household A',
+  'High usage in Household B',
+  'Low tank level at Household C',
+  'Pressure spike detected in Household D',
+  'Valve inspection recommended for Household E'
+];
+
+function renderHouseholdList() {
+  if (!householdContainer) return;
+  if (adminHouseholds.length === 0) {
+    householdContainer.innerHTML = '<p>No households have been added yet.</p>';
+    return;
+  }
+
+  const list = document.createElement('div');
+  list.innerHTML = adminHouseholds.map(h => `
+    <div class="placeholder-box" style="margin-bottom: 12px;">
+      <strong>${h.name}</strong>
+      <p class="subtext">Status: ${h.status} • Latest usage: ${h.usageHistory.slice(-1)[0]} L</p>
+    </div>
+  `).join('');
+
+  householdContainer.innerHTML = '<p><strong>Household list</strong></p>';
+  householdContainer.appendChild(list);
+}
+
+function viewReports() {
+  if (!householdReports) return;
+  if (adminHouseholds.length === 0) {
+    householdReports.innerHTML = '<p>No households available for reports.</p>';
+    return;
+  }
+
+  householdReports.innerHTML = adminHouseholds.map(h => {
+    const average = Math.round(h.usageHistory.reduce((sum, value) => sum + value, 0) / h.usageHistory.length);
+    return `
+      <div class="placeholder-box" style="margin-bottom: 12px;">
+        <strong>${h.name}</strong>
+        <p class="subtext">Average usage: ${average} L • History: ${h.usageHistory.join(' L, ')} L</p>
+      </div>
+    `;
+  }).join('');
+}
+
+function getRandomAlert() {
+  return adminAlerts[Math.floor(Math.random() * adminAlerts.length)];
+}
+
+function simulateSystemAlerts() {
+  if (!systemAlertsEl) return;
+  const alertText = getRandomAlert();
+  systemAlertsEl.innerHTML = `
+    <p class="alert-state">${alertText}</p>
+    <p class="subtext">Updated at ${formatTime(new Date())}</p>
+  `;
+}
+
+function addHousehold() {
+  const name = window.prompt('Enter new household name:');
+  if (!name) return;
+
+  const usageBase = Math.round(70 + Math.random() * 140);
+  adminHouseholds.push({
+    name: name.trim(),
+    usageHistory: [usageBase, usageBase + 10, usageBase - 5, usageBase + 8],
+    status: 'Normal',
+    alert: 'None'
+  });
+  renderHouseholdList();
+  viewReports();
+}
+
+if (addHouseholdBtn) {
+  addHouseholdBtn.addEventListener('click', addHousehold);
+}
+
+if (viewReportsBtn) {
+  viewReportsBtn.addEventListener('click', viewReports);
+}
+
+if (refreshAlertsBtn) {
+  refreshAlertsBtn.addEventListener('click', simulateSystemAlerts);
+}
+
+renderHouseholdList();
+simulateSystemAlerts();
+setInterval(() => {
+  simulateSystemAlerts();
+}, 10000);
