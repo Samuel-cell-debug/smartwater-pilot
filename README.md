@@ -1,16 +1,126 @@
-# SmartWater Ghana 💧
-A pilot dashboard for smart water management in Ghanaian households.
+🌍 Smart Water Ghana – Pilot Dashboard & Admin Panel
+Vision
+Empowering Ghanaian communities with tech-enabled water solutions that are affordable, scalable, and dignified.
+The project aims to curb household water wastage and preserve resources so water can be distributed effectively to areas with little or no access.
 
-## Features
-- 📊 Real-time tank level simulation
-- 🚨 Leak alerts
-- 💳 Mobile money payment buttons
-- 📝 Feedback form for pilot users
+Baseline Problem
+Many households in Ghana waste water due to leaks, overuse, or lack of monitoring.
 
-## How to Use
-1. Open `index.html` to view the dashboard
-2. Use `admin.html` for backend management
-3. Share feedback via embedded form
+Communities with limited access suffer while excess water is lost.
 
-## Vision
-Empowering communities with tech-enabled water solutions that are affordable, scalable, and dignified.
+Current GWCL meters do not provide real-time feedback or smart controls.
+
+Project Goals
+Monitor household water usage in real-time.
+
+Detect and alert leaks early.
+
+Enable Mobile Money payments directly from the dashboard.
+
+Collect feedback from pilot users.
+
+Provide an admin panel for household and system management.
+
+Introduce smart cutoff logic at GWCL meters when quotas are exceeded.
+
+Redistribute saved water to underserved communities.
+
+Project Structure
+Code
+smart-water-ghana/
+│
+├── index.html        # User-facing dashboard
+├── admin.html        # Backend management
+├── style.css         # Shared styling
+├── app.js            # Unified logic (dashboard + admin)
+└── README.md         # Documentation
+Features Implemented
+Dashboard
+
+Real-time household water usage (simulated).
+
+Leak alerts (simulated after delay).
+
+Mobile Money payment button (placeholder).
+
+Feedback form with submission handling.
+
+Admin Panel
+
+Manage households (add, view usage reports).
+
+Display system alerts (simulated).
+
+Consistent styling with dashboard.
+
+Persistent Storage
+
+Households, feedback, and alerts saved in localStorage.
+
+Data reloads automatically after refresh.
+
+Suggested Enhancements
+1. Tiered Usage Limits
+Assign quotas per household.
+
+Apply higher tariffs when exceeding quota.
+
+Show warnings before cutoff.
+
+2. Leak Detection Sensors
+IoT sensors detect leaks.
+
+Alerts shown on dashboard/admin.
+
+Option to resolve leaks.
+
+3. Smart Billing
+Link usage directly to billing.
+
+Real-time cost display.
+
+Mobile Money integration.
+
+4. Community Redistribution
+Track water saved from conservation.
+
+Redirect excess to low-supply areas.
+
+Show impact on dashboard.
+
+5. Gamification & Rewards
+Award badges for conservation.
+
+Track streaks of mindful usage.
+
+Leaderboard for households.
+
+6. Behavioral Nudges
+Daily water-saving tips.
+
+Rotate tips randomly.
+
+Admin can add/edit tips.
+
+Smart Meter Cutoff Logic
+Thresholds: Automatically shut off water when quota is exceeded.
+
+Notifications: SMS/app alerts before cutoff.
+
+Overrides: Emergency override for hospitals, schools, vulnerable households.
+
+User Experience
+Dashboard: Feels empowering — households see usage, costs, and conservation impact.
+
+Admin Panel: Provides control — manage households, monitor alerts, redistribute water.
+
+Persistence: Data continuity across sessions makes the pilot realistic.
+
+Next Steps
+Integrate IoT sensors for real-time leak detection.
+
+Connect to GWCL smart meters for cutoff logic.
+
+Expand Mobile Money integration for live billing.
+
+Pilot test with selected households in Accra.
