@@ -1,9 +1,19 @@
 let householdData = [];
+let billingHistory = [];  // Track all billing records
+let paymentHistory = [];  // Track all payments
+let redistributionHistory = [];  // Track water redistribution events
+let communityAreas = [];  // List of communities for redistribution
+
+const defaultCommunities = [
+  { id: 'area-1', name: 'Low-Supply District Alpha', priority: 'High', currentAllocation: 0 },
+  { id: 'area-2', name: 'Underserved Zone Beta', priority: 'High', currentAllocation: 0 },
+  { id: 'area-3', name: 'Seasonal Drought Area', priority: 'Medium', currentAllocation: 0 }
+];
 
 const defaultHouseholds = [
-  { name: 'Household A', usageHistory: [18, 22, 20, 24, 19, 23, 21], status: 'Normal', alert: 'None', size: 'Medium', monthlyQuota: 500, monthlyUsage: 0 },
-  { name: 'Household B', usageHistory: [25, 28, 24, 30, 27, 29, 31], status: 'High Usage', alert: 'Review', size: 'Large', monthlyQuota: 700, monthlyUsage: 0 },
-  { name: 'Household C', usageHistory: [12, 14, 13, 15, 14, 13, 16], status: 'Low Tank', alert: 'Low Level', size: 'Small', monthlyQuota: 300, monthlyUsage: 0 }
+  { name: 'Household A', usageHistory: [18, 22, 20, 24, 19, 23, 21], status: 'Normal', alert: 'None', size: 'Medium', monthlyQuota: 500, monthlyUsage: 0, outstandingBalance: 0 },
+  { name: 'Household B', usageHistory: [25, 28, 24, 30, 27, 29, 31], status: 'High Usage', alert: 'Review', size: 'Large', monthlyQuota: 700, monthlyUsage: 0, outstandingBalance: 0 },
+  { name: 'Household C', usageHistory: [12, 14, 13, 15, 14, 13, 16], status: 'Low Tank', alert: 'Low Level', size: 'Small', monthlyQuota: 300, monthlyUsage: 0, outstandingBalance: 0 }
 ];
 
 let systemAlertsHistory = [];
@@ -172,7 +182,297 @@ function adjustHouseholdSize(householdIndex, newSize) {
   return true;
 }
 
-// ============ End Tiered Usage Configuration ============
+// ============ Billing & Payment Management ============
+
+/**
+ * Generate billing record for a household
+ */
+function generateBillingRecord(householdIndex, month = new Date().toISOString().slice(0, 7)) {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    console.error('Invalid household index');
+    return null;
+  }
+
+  const household = householdData[householdIndex];
+  const monthlyUsage = calculateMonthlyUsage(household);
+  const monthlyBill = calculateMonthlyBill(household);
+  const quotaPercentage = getQuotaPercentage(household);
+  const tariff = getTariffTier(household);
+
+  const billingRecord = {
+    id: `bill-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    householdIndex,
+    householdName: household.name,
+    month,
+    usageInGallons: monthlyUsage,
+    quota: household.monthlyQuota,
+    quotaPercentage,
+    tariffTier: tariff.tier,
+    tariffName: tariff.name,
+    amountDue: monthlyBill,
+    outstandingBalance: monthlyBill,
+    status: 'unpaid',
+    generatedAt: new Date().toISOString(),
+    paidAt: null,
+    paymentMethod: null
+  };
+
+  billingHistory.push(billingRecord);
+  saveBillingHistory();
+  
+  return billingRecord;
+}
+
+/**
+ * Get outstanding balance for a household
+ */
+function getOutstandingBalance(householdIndex) {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    return 0;
+  }
+  
+  const unpaidRecords = billingHistory.filter(
+    bill => bill.householdIndex === householdIndex && bill.status === 'unpaid'
+  );
+  
+  return unpaidRecords.reduce((sum, bill) => sum + bill.outstandingBalance, 0);
+}
+
+/**
+ * Record a Mobile Money payment for a household
+ */
+function recordPayment(householdIndex, amount, phoneNumber = '', transactionId = '') {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    console.error('Invalid household index');
+    return false;
+  }
+
+  if (amount <= 0) {
+    console.error('Payment amount must be positive');
+    return false;
+  }
+
+  const household = householdData[householdIndex];
+  let remainingPayment = amount;
+
+  // Apply payment to oldest unpaid bills first (FIFO)
+  const unpaidBills = billingHistory.filter(
+    bill => bill.householdIndex === householdIndex && bill.status === 'unpaid'
+  ).sort((a, b) => new Date(a.generatedAt) - new Date(b.generatedAt));
+
+  for (let bill of unpaidBills) {
+    if (remainingPayment <= 0) break;
+
+    const paymentTowardsBill = Math.min(remainingPayment, bill.outstandingBalance);
+    bill.outstandingBalance -= paymentTowardsBill;
+    remainingPayment -= paymentTowardsBill;
+
+    if (bill.outstandingBalance <= 0) {
+      bill.status = 'paid';
+      bill.paidAt = new Date().toISOString();
+      bill.paymentMethod = 'Mobile Money';
+    }
+  }
+
+  // Record payment in payment history
+  const payment = {
+    id: `pay-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    householdIndex,
+    householdName: household.name,
+    amount,
+    phoneNumber,
+    transactionId: transactionId || 'MANUAL_ENTRY',
+    method: 'Mobile Money',
+    processedAt: new Date().toISOString(),
+    displayTime: formatTime(new Date())
+  };
+
+  paymentHistory.push(payment);
+  savePaymentHistory();
+  
+  // Update household balance
+  household.outstandingBalance = getOutstandingBalance(householdIndex);
+  saveHouseholds();
+
+  // Add to system alerts
+  systemAlertsHistory.push({
+    message: `✓ Payment received from ${household.name}: $${amount}`,
+    timestamp: new Date().toISOString(),
+    displayTime: formatTime(new Date())
+  });
+  saveAlerts();
+
+  return true;
+}
+
+/**
+ * Get total revenue collected (sum of all paid bills)
+ */
+function getTotalRevenueCollected() {
+  return paymentHistory.reduce((sum, payment) => sum + payment.amount, 0);
+}
+
+/**
+ * Get total outstanding revenue (sum of all unpaid bills)
+ */
+function getTotalOutstandingRevenue() {
+  return billingHistory
+    .filter(bill => bill.status === 'unpaid')
+    .reduce((sum, bill) => sum + bill.outstandingBalance, 0);
+}
+
+/**
+ * Get billing summary for all households
+ */
+function getBillingSummary() {
+  return {
+    totalHouseholds: householdData.length,
+    totalRevenue: getTotalRevenueCollected(),
+    totalOutstanding: getTotalOutstandingRevenue(),
+    averageBillPerHousehold: householdData.length > 0
+      ? Math.round((getTotalRevenueCollected() + getTotalOutstandingRevenue()) / householdData.length * 100) / 100
+      : 0,
+    householdDetails: householdData.map((h, index) => ({
+      name: h.name,
+      currentBalance: h.outstandingBalance,
+      lastBill: calculateMonthlyBill(h),
+      paymentStatus: h.outstandingBalance === 0 ? 'Paid' : 'Outstanding'
+    }))
+  };
+}
+
+/**
+ * Get recent payment activity
+ */
+function getRecentPayments(limit = 5) {
+  return paymentHistory.slice(-limit).reverse();
+}
+
+// ============ End Billing Management ============
+
+// ============ Water Redistribution & Community Impact ============
+
+/**
+ * Calculate total water saved from reduced wastage (based on quota vs usage)
+ * Households under their quota are considered as having "saved" water
+ */
+function calculateTotalWaterSaved() {
+  return householdData.reduce((total, household) => {
+    const monthlyUsage = calculateMonthlyUsage(household);
+    const quota = household.monthlyQuota;
+    const saved = Math.max(0, quota - monthlyUsage);
+    return total + saved;
+  }, 0);
+}
+
+/**
+ * Get water savings status for a specific household
+ */
+function getHouseholdWaterSavings(householdIndex) {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    return { saved: 0, percentage: 0 };
+  }
+  
+  const household = householdData[householdIndex];
+  const monthlyUsage = calculateMonthlyUsage(household);
+  const quota = household.monthlyQuota;
+  const saved = Math.max(0, quota - monthlyUsage);
+  const percentage = quota > 0 ? Math.round((saved / quota) * 100) : 0;
+  
+  return { saved, percentage, isConserving: saved > 0 };
+}
+
+/**
+ * Allocate water from savings pool to a community area
+ */
+function allocateWaterToArea(areaId, gallons) {
+  const totalSaved = calculateTotalWaterSaved();
+  
+  if (gallons > totalSaved) {
+    console.error(`Insufficient water saved. Available: ${totalSaved}, Requested: ${gallons}`);
+    return false;
+  }
+
+  const areaIndex = communityAreas.findIndex(a => a.id === areaId);
+  if (areaIndex === -1) {
+    console.error(`Area ${areaId} not found`);
+    return false;
+  }
+
+  const redistRecord = {
+    id: `redist-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
+    areaId,
+    areaName: communityAreas[areaIndex].name,
+    gallonsAllocated: gallons,
+    allocatedAt: new Date().toISOString(),
+    displayTime: formatTime(new Date()),
+    status: 'active'
+  };
+
+  redistributionHistory.push(redistRecord);
+  communityAreas[areaIndex].currentAllocation += gallons;
+  
+  saveRedistributionHistory();
+  saveCommunities();
+
+  // Add to system alerts
+  systemAlertsHistory.push({
+    message: `✓ Water Redistribution: ${gallons} gallons allocated to ${communityAreas[areaIndex].name}`,
+    timestamp: new Date().toISOString(),
+    displayTime: formatTime(new Date())
+  });
+  saveAlerts();
+
+  return true;
+}
+
+/**
+ * Get total water allocated to all communities
+ */
+function getTotalWaterAllocated() {
+  return communityAreas.reduce((sum, area) => sum + area.currentAllocation, 0);
+}
+
+/**
+ * Get redistribution impact summary
+ */
+function getRedistributionImpact() {
+  const totalSaved = calculateTotalWaterSaved();
+  const totalAllocated = getTotalWaterAllocated();
+  const conservingHouseholds = householdData.filter((h, i) => {
+    const savings = getHouseholdWaterSavings(i);
+    return savings.isConserving;
+  }).length;
+
+  return {
+    totalWaterSaved: totalSaved,
+    totalWaterAllocated: totalAllocated,
+    remainingAvailable: totalSaved - totalAllocated,
+    conservingHouseholds,
+    totalHouseholds: householdData.length,
+    conservationRate: householdData.length > 0 
+      ? Math.round((conservingHouseholds / householdData.length) * 100) 
+      : 0,
+    redistributionRecords: redistributionHistory.filter(r => r.status === 'active'),
+    communityDetails: communityAreas.map(area => ({
+      name: area.name,
+      priority: area.priority,
+      allocated: area.currentAllocation
+    }))
+  };
+}
+
+/**
+ * Get recent redistribution activity
+ */
+function getRecentRedistributions(limit = 5) {
+  return redistributionHistory
+    .filter(r => r.status === 'active')
+    .slice(-limit)
+    .reverse();
+}
+
+// ============ End Water Redistribution ============
 
 // ============ Leak Detection & Management ============
 
@@ -367,6 +667,8 @@ const refreshAlertsBtn = document.getElementById('refreshAlertsBtn');
 const householdContainer = document.getElementById('householdContainer');
 const householdReports = document.getElementById('householdReports');
 const systemAlertsEl = document.getElementById('systemAlerts');
+const revenueContainer = document.getElementById('revenueContainer');
+const redistributionContainer = document.getElementById('redistributionContainer');
 
 // ============ localStorage Persistence Functions ============
 
@@ -489,6 +791,118 @@ function loadLeaks() {
 }
 
 /**
+ * Save billing history to localStorage
+ */
+function saveBillingHistory() {
+  try {
+    localStorage.setItem('smartwater_billing', JSON.stringify(billingHistory));
+  } catch (error) {
+    console.error('Error saving billing history to localStorage:', error);
+  }
+}
+
+/**
+ * Load billing history from localStorage
+ */
+function loadBillingHistory() {
+  try {
+    const stored = localStorage.getItem('smartwater_billing');
+    if (stored) {
+      billingHistory = JSON.parse(stored);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error loading billing history from localStorage:', error);
+  }
+  billingHistory = [];
+  return false;
+}
+
+/**
+ * Save payment history to localStorage
+ */
+function savePaymentHistory() {
+  try {
+    localStorage.setItem('smartwater_payments', JSON.stringify(paymentHistory));
+  } catch (error) {
+    console.error('Error saving payment history to localStorage:', error);
+  }
+}
+
+/**
+ * Load payment history from localStorage
+ */
+function loadPaymentHistory() {
+  try {
+    const stored = localStorage.getItem('smartwater_payments');
+    if (stored) {
+      paymentHistory = JSON.parse(stored);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error loading payment history from localStorage:', error);
+  }
+  paymentHistory = [];
+  return false;
+}
+
+/**
+ * Save redistribution history to localStorage
+ */
+function saveRedistributionHistory() {
+  try {
+    localStorage.setItem('smartwater_redistribution', JSON.stringify(redistributionHistory));
+  } catch (error) {
+    console.error('Error saving redistribution history to localStorage:', error);
+  }
+}
+
+/**
+ * Load redistribution history from localStorage
+ */
+function loadRedistributionHistory() {
+  try {
+    const stored = localStorage.getItem('smartwater_redistribution');
+    if (stored) {
+      redistributionHistory = JSON.parse(stored);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error loading redistribution history from localStorage:', error);
+  }
+  redistributionHistory = [];
+  return false;
+}
+
+/**
+ * Save community areas to localStorage
+ */
+function saveCommunities() {
+  try {
+    localStorage.setItem('smartwater_communities', JSON.stringify(communityAreas));
+  } catch (error) {
+    console.error('Error saving communities to localStorage:', error);
+  }
+}
+
+/**
+ * Load community areas from localStorage
+ */
+function loadCommunities() {
+  try {
+    const stored = localStorage.getItem('smartwater_communities');
+    if (stored) {
+      communityAreas = JSON.parse(stored);
+      return true;
+    }
+  } catch (error) {
+    console.error('Error loading communities from localStorage:', error);
+  }
+  communityAreas = JSON.parse(JSON.stringify(defaultCommunities));
+  return false;
+}
+
+/**
  * Clear all persisted data (for testing/reset)
  */
 function clearAllStoredData() {
@@ -497,10 +911,18 @@ function clearAllStoredData() {
     localStorage.removeItem('smartwater_feedback');
     localStorage.removeItem('smartwater_alerts');
     localStorage.removeItem('smartwater_leaks');
+    localStorage.removeItem('smartwater_billing');
+    localStorage.removeItem('smartwater_payments');
+    localStorage.removeItem('smartwater_redistribution');
+    localStorage.removeItem('smartwater_communities');
     householdData = JSON.parse(JSON.stringify(defaultHouseholds));
     feedbackHistory = [];
     systemAlertsHistory = [];
     leakEvents = [];
+    billingHistory = [];
+    paymentHistory = [];
+    redistributionHistory = [];
+    communityAreas = JSON.parse(JSON.stringify(defaultCommunities));
     console.log('All stored data cleared.');
   } catch (error) {
     console.error('Error clearing stored data:', error);
@@ -536,6 +958,57 @@ function updateDashboardUsage() {
   usageTrendEl.innerHTML = trendHousehold.usageHistory
     .map((value, index) => `<li><span>Day ${index + 1}</span><strong>${value} L</strong></li>`)
     .join('');
+
+  // Update billing summary on dashboard
+  const dashboardBillingEl = document.getElementById('dashboardTotalBilling');
+  if (dashboardBillingEl) {
+    const totalOutstanding = getTotalOutstandingRevenue();
+    dashboardBillingEl.innerText = `$${totalOutstanding.toFixed(2)}`;
+  }
+}
+
+/**
+ * Update redistribution impact dashboard
+ */
+function updateRedistributionDashboard() {
+  const communityWaterSavedEl = document.getElementById('communityWaterSaved');
+  const communityImpactEl = document.getElementById('communityImpactText');
+  const redistributionStatsEl = document.getElementById('redistributionStats');
+
+  if (!communityWaterSavedEl && !communityImpactEl && !redistributionStatsEl) return;
+
+  const impact = getRedistributionImpact();
+
+  if (communityWaterSavedEl) {
+    communityWaterSavedEl.innerText = `${impact.totalWaterSaved} gallons saved`;
+  }
+
+  if (communityImpactEl) {
+    const progressText = impact.totalHouseholds > 0
+      ? `${impact.conservingHouseholds} of ${impact.totalHouseholds} households conserving water (${impact.conservationRate}%)`
+      : 'No households data available';
+    communityImpactEl.innerText = progressText;
+  }
+
+  if (redistributionStatsEl) {
+    const statsHTML = `
+      <div style="padding: 8px 0; font-size: 0.9em;">
+        <p style="margin: 4px 0; color: #333;"><strong>Water Allocated:</strong> ${impact.totalWaterAllocated} gallons</p>
+        <p style="margin: 4px 0; color: #2e7d32;"><strong>Available:</strong> ${impact.remainingAvailable} gallons</p>
+      </div>
+      ${impact.communityDetails.length > 0 ? `
+        <div style="margin-top: 8px; padding-top: 8px; border-top: 1px solid #ddd;">
+          <p style="margin: 4px 0; font-size: 0.85em; font-weight: bold; color: #666;">Areas Receiving Water:</p>
+          ${impact.communityDetails.map(area => `
+            <p style="margin: 4px 0; font-size: 0.85em; color: #333;">
+              ${area.priority === 'High' ? '🔴' : '🟡'} ${area.name}: ${area.allocated} gal
+            </p>
+          `).join('')}
+        </div>
+      ` : '<p style="margin: 4px 0; font-size: 0.85em; color: #999;">No water allocated yet</p>'}
+    `;
+    redistributionStatsEl.innerHTML = statsHTML;
+  }
 }
 
 function triggerLeakAlert() {
@@ -558,7 +1031,62 @@ function triggerLeakAlert() {
 }
 
 function payWithMomo() {
-  window.alert('Mobile Money payment placeholder: Mobile Money integration will be added soon.');
+  if (householdData.length === 0) {
+    window.alert('No households available for payment.');
+    return;
+  }
+
+  // Get household selection
+  const householdOptions = householdData.map((h, i) => `${i + 1}. ${h.name} (Balance: $${getOutstandingBalance(i).toFixed(2)})`).join('\n');
+  const householdInput = window.prompt(`Select household to pay for:\n\n${householdOptions}\n\nEnter number:`, '1');
+  
+  if (!householdInput) return;
+  
+  const householdIndex = parseInt(householdInput) - 1;
+  if (isNaN(householdIndex) || householdIndex < 0 || householdIndex >= householdData.length) {
+    window.alert('Invalid household selection.');
+    return;
+  }
+
+  const household = householdData[householdIndex];
+  const outstandingBalance = getOutstandingBalance(householdIndex);
+
+  if (outstandingBalance <= 0) {
+    window.alert(`${household.name} has no outstanding balance. Account is up to date!`);
+    return;
+  }
+
+  // Get payment amount
+  const amountInput = window.prompt(
+    `Mobile Money Payment for ${household.name}\nOutstanding Balance: $${outstandingBalance.toFixed(2)}\n\nEnter payment amount:`,
+    outstandingBalance.toFixed(2)
+  );
+
+  if (!amountInput) return;
+
+  const amount = parseFloat(amountInput);
+  if (isNaN(amount) || amount <= 0) {
+    window.alert('Invalid amount. Please enter a positive number.');
+    return;
+  }
+
+  // Get phone number
+  const phoneNumber = window.prompt('Enter Mobile Money phone number (e.g., +233XXXXXXXXX):');
+  if (!phoneNumber) return;
+
+  // Process payment
+  if (recordPayment(householdIndex, amount, phoneNumber)) {
+    const newBalance = getOutstandingBalance(householdIndex);
+    window.alert(
+      `✓ Payment Successful!\n\nHousehold: ${household.name}\nAmount Paid: $${amount.toFixed(2)}\nNew Balance: $${newBalance.toFixed(2)}\n\nTransaction ID: PAY-${Date.now()}`
+    );
+    renderHouseholdList();
+    viewReports();
+    updateDashboardUsage();
+    simulateSystemAlerts();
+  } else {
+    window.alert('Error processing payment. Please try again.');
+  }
 }
 
 function handleFeedback(event) {
@@ -600,11 +1128,44 @@ function renderHouseholdList() {
       const tariff = getTariffTier(h);
       const monthlyUsage = calculateMonthlyUsage(h);
       const monthlyBill = calculateMonthlyBill(h);
+      const outstandingBalance = getOutstandingBalance(index);
       const activeLeak = getActiveLeakForHousehold(index);
+      const waterSavings = getHouseholdWaterSavings(index);
       
       const quotaBar = `
         <div style="margin-top: 8px; background: #e0e0e0; border-radius: 4px; overflow: hidden; height: 8px;">
           <div style="width: ${Math.min(quotaPercentage, 100)}%; background: ${quotaPercentage > 100 ? '#d32f2f' : '#4caf50'}; height: 100%;"></div>
+        </div>
+      `;
+
+      const waterSavingsInfo = waterSavings.isConserving ? `
+        <div style="margin-top: 8px; padding: 8px; background: #c8e6c9; border-radius: 4px; border-left: 3px solid #2e7d32;">
+          <p style="margin: 0; color: #2e7d32; font-weight: bold; font-size: 0.95em;">
+            🌱 Water Conserved: ${waterSavings.saved} gallons (${waterSavings.percentage}% of quota)
+          </p>
+          <p style="margin: 4px 0 0 0; color: #1b5e20; font-size: 0.85em;">Contributing to community redistribution</p>
+        </div>
+      ` : '';
+
+      const billingInfo = `
+        <div style="margin-top: 12px; padding: 10px; background: #f5f5f5; border-radius: 4px;">
+          <p style="margin: 0 0 6px 0; font-weight: bold;">💰 Billing Information</p>
+          <p style="margin: 0 0 4px 0; color: #333;">Current Bill: $${monthlyBill.toFixed(2)}</p>
+          <p style="margin: 0 0 4px 0; color: ${outstandingBalance > 0 ? '#d32f2f' : '#4caf50'}; font-weight: ${outstandingBalance > 0 ? 'bold' : 'normal'};">
+            Outstanding Balance: $${outstandingBalance.toFixed(2)}
+          </p>
+          ${outstandingBalance > 0 ? `
+            <button onclick="setTimeout(() => {
+              const householdOptions = householdData.map((h, i) => i === ${index} ? null : null).join('');
+              const amount = window.prompt('Enter payment amount for ${h.name.replace(/'/g, "\\'")}:', '${outstandingBalance.toFixed(2)}');
+              if (amount) {
+                const phone = window.prompt('Enter phone number:');
+                if (phone) recordPayment(${index}, parseFloat(amount), phone) ? (alert('Payment successful!'), location.reload()) : alert('Payment failed');
+              }
+            }, 100);" style="padding: 4px 8px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.9em;">
+              Pay Now
+            </button>
+          ` : '✓ Account up to date'}
         </div>
       `;
 
@@ -624,9 +1185,10 @@ function renderHouseholdList() {
           <strong>${h.name}</strong>
           <p class="subtext">Status: ${h.status} • Size: ${h.size} • Latest usage: ${h.usageHistory.slice(-1)[0]} L</p>
           <p class="subtext">Usage: ${monthlyUsage} / ${h.monthlyQuota} gallons (${quotaPercentage}%) | Tier: ${tariff.name}</p>
-          <p class="subtext">Est. Bill: $${monthlyBill}</p>
           ${quotaBar}
+          ${waterSavingsInfo}
           ${warning ? `<p style="color: #d32f2f; margin-top: 8px; font-weight: bold;">${warning}</p>` : ''}
+          ${billingInfo}
           ${leakSection}
         </div>
       `;
@@ -642,7 +1204,31 @@ function viewReports() {
     return;
   }
 
-  householdReports.innerHTML = householdData
+  const billingSummary = getBillingSummary();
+  const recentPayments = getRecentPayments(3);
+
+  const summarySection = `
+    <div style="padding: 12px; background: #e8f5e9; border-radius: 4px; margin-bottom: 12px;">
+      <p style="margin: 0; font-weight: bold; color: #2e7d32;">💰 BILLING SUMMARY</p>
+      <p style="margin: 4px 0; color: #333;">Total Households: ${billingSummary.totalHouseholds}</p>
+      <p style="margin: 4px 0; color: #2e7d32; font-weight: bold;">Total Revenue Collected: $${billingSummary.totalRevenue.toFixed(2)}</p>
+      <p style="margin: 4px 0; color: #d32f2f; font-weight: bold;">Total Outstanding: $${billingSummary.totalOutstanding.toFixed(2)}</p>
+      <p style="margin: 4px 0; color: #333;">Average Bill per Household: $${billingSummary.averageBillPerHousehold.toFixed(2)}</p>
+    </div>
+  `;
+
+  const recentPaymentsSection = recentPayments.length > 0 ? `
+    <div style="padding: 12px; background: #f3e5f5; border-radius: 4px; margin-bottom: 12px;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #6a1b9a;">📱 Recent Payments</p>
+      ${recentPayments.map(p => `
+        <p style="margin: 4px 0; color: #333; font-size: 0.9em;">
+          ✓ ${p.householdName}: $${p.amount.toFixed(2)} @ ${p.displayTime}
+        </p>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const detailedReports = householdData
     .map((h, index) => {
       const average = Math.round(h.usageHistory.reduce((sum, value) => sum + value, 0) / h.usageHistory.length);
       const monthlyUsage = calculateMonthlyUsage(h);
@@ -650,6 +1236,7 @@ function viewReports() {
       const tariff = getTariffTier(h);
       const monthlyBill = calculateMonthlyBill(h);
       const warning = getQuotaWarning(h);
+      const outstandingBalance = getOutstandingBalance(index);
       
       return `
         <div class="placeholder-box" style="margin-bottom: 12px;">
@@ -658,7 +1245,8 @@ function viewReports() {
           <p class="subtext"><strong>Monthly Quota:</strong> ${h.monthlyQuota} gallons</p>
           <p class="subtext"><strong>Monthly Usage:</strong> ${monthlyUsage} gallons (${quotaPercentage}%)</p>
           <p class="subtext"><strong>Tariff Tier:</strong> ${tariff.name} (${tariff.multiplier}x rate)</p>
-          <p class="subtext"><strong>Est. Monthly Bill:</strong> $${monthlyBill}</p>
+          <p class="subtext"><strong>Est. Monthly Bill:</strong> $${monthlyBill.toFixed(2)}</p>
+          <p class="subtext"><strong>Outstanding Balance:</strong> <span style="color: ${outstandingBalance > 0 ? '#d32f2f' : '#4caf50'}; font-weight: bold;">$${outstandingBalance.toFixed(2)}</span></p>
           <p class="subtext">
             <button onclick="promptAdjustQuota(${index})" style="padding: 4px 8px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer;">
               Adjust Quota
@@ -666,12 +1254,181 @@ function viewReports() {
             <button onclick="promptAdjustSize(${index})" style="padding: 4px 8px; margin-left: 8px; background: #ff9800; color: white; border: none; border-radius: 4px; cursor: pointer;">
               Adjust Size
             </button>
+            <button onclick="adminGenerateBill(${index})" style="padding: 4px 8px; margin-left: 8px; background: #9c27b0; color: white; border: none; border-radius: 4px; cursor: pointer;">
+              Generate Bill
+            </button>
           </p>
           ${warning ? `<p style="color: #d32f2f; margin-top: 8px;"><strong>${warning}</strong></p>` : ''}
         </div>
       `;
     })
     .join('');
+
+  householdReports.innerHTML = summarySection + recentPaymentsSection + detailedReports;
+}
+
+/**
+ * Render revenue dashboard for admin panel
+ */
+function renderRevenueDashboard() {
+  if (!revenueContainer) return;
+
+  const summary = getBillingSummary();
+  const recentPayments = getRecentPayments(5);
+
+  const revenueCard = `
+    <div style="padding: 12px; background: #e8f5e9; border-radius: 4px; margin-bottom: 12px; border-left: 4px solid #4caf50;">
+      <p style="margin: 0 0 8px 0; font-size: 1.1em; font-weight: bold; color: #2e7d32;">💰 Revenue Summary</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+        <div>
+          <p style="margin: 0; color: #666; font-size: 0.9em;">Total Collected</p>
+          <p style="margin: 0; font-size: 1.5em; font-weight: bold; color: #2e7d32;">$${summary.totalRevenue.toFixed(2)}</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #666; font-size: 0.9em;">Outstanding</p>
+          <p style="margin: 0; font-size: 1.5em; font-weight: bold; color: #d32f2f;">$${summary.totalOutstanding.toFixed(2)}</p>
+        </div>
+      </div>
+      <p style="margin: 0; color: #666; font-size: 0.9em;">Households: ${summary.totalHouseholds} | Avg Bill: $${summary.averageBillPerHousehold.toFixed(2)}</p>
+    </div>
+  `;
+
+  const paymentActivityCard = recentPayments.length > 0 ? `
+    <div style="padding: 12px; background: #f3e5f5; border-radius: 4px; margin-bottom: 12px; border-left: 4px solid #6a1b9a;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #6a1b9a;">📱 Recent Payment Activity</p>
+      ${recentPayments.map(p => `
+        <div style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; font-size: 0.9em;">
+          <p style="margin: 0; color: #333;"><strong>${p.householdName}</strong></p>
+          <p style="margin: 0; color: #2e7d32;">✓ +$${p.amount.toFixed(2)} @ ${p.displayTime}</p>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  const householdBillingCard = `
+    <div style="padding: 12px; background: #e1f5fe; border-radius: 4px; border-left: 4px solid #0288d1;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #0277bd;">🏠 Household Payment Status</p>
+      ${summary.householdDetails.map(h => `
+        <div style="padding: 6px 0; border-bottom: 1px solid #b3e5fc; font-size: 0.9em;">
+          <p style="margin: 0; color: #333;"><strong>${h.name}</strong></p>
+          <p style="margin: 0; color: ${h.paymentStatus === 'Paid' ? '#4caf50' : '#d32f2f'};">
+            ${h.paymentStatus === 'Paid' ? '✓' : '⚠'} Balance: $${h.currentBalance.toFixed(2)} | Last Bill: $${h.lastBill.toFixed(2)}
+          </p>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  revenueContainer.innerHTML = revenueCard + paymentActivityCard + householdBillingCard;
+}
+
+/**
+ * Render redistribution management dashboard for admin panel
+ */
+function renderRedistributionDashboard() {
+  if (!redistributionContainer) return;
+
+  const impact = getRedistributionImpact();
+  const recentRedists = getRecentRedistributions(5);
+
+  const impactCard = `
+    <div style="padding: 12px; background: #c8e6c9; border-radius: 4px; margin-bottom: 12px; border-left: 4px solid #2e7d32;">
+      <p style="margin: 0 0 8px 0; font-size: 1.1em; font-weight: bold; color: #1b5e20;">🌱 Water Conservation Impact</p>
+      <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 12px; margin-bottom: 8px;">
+        <div>
+          <p style="margin: 0; color: #1b5e20; font-size: 0.9em;">Total Saved</p>
+          <p style="margin: 0; font-size: 1.5em; font-weight: bold; color: #1b5e20;">${impact.totalWaterSaved} gal</p>
+        </div>
+        <div>
+          <p style="margin: 0; color: #1b5e20; font-size: 0.9em;">Households Conserving</p>
+          <p style="margin: 0; font-size: 1.5em; font-weight: bold; color: #1b5e20;">${impact.conservingHouseholds}/${impact.totalHouseholds}</p>
+        </div>
+      </div>
+      <p style="margin: 0; color: #1b5e20; font-size: 0.9em;">Conservation Rate: ${impact.conservationRate}%</p>
+    </div>
+  `;
+
+  const allocationCard = `
+    <div style="padding: 12px; background: #bbdefb; border-radius: 4px; margin-bottom: 12px; border-left: 4px solid #0277bd;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #01579b;">📊 Water Allocation Status</p>
+      <div style="padding: 8px 0;">
+        <p style="margin: 4px 0; color: #0277bd; font-weight: bold;">Total Allocated: ${impact.totalWaterAllocated} gallons</p>
+        <p style="margin: 4px 0; color: #0277bd;">Available to Allocate: ${impact.remainingAvailable} gallons</p>
+      </div>
+      <p style="margin: 8px 0 0 0; font-size: 0.9em; font-weight: bold; color: #01579b;">Community Areas:</p>
+      ${communityAreas.map((area, idx) => `
+        <div style="padding: 8px 0; border-top: 1px solid #90caf9;">
+          <p style="margin: 0; color: #0277bd;"><strong>${area.name}</strong> (Priority: ${area.priority})</p>
+          <p style="margin: 4px 0; color: #0277bd; font-size: 0.9em;">Currently Allocated: ${area.currentAllocation} gallons</p>
+          <button onclick="adminAllocateWater(${idx})" style="padding: 4px 8px; margin-top: 4px; background: #2196f3; color: white; border: none; border-radius: 4px; cursor: pointer; font-size: 0.85em;">
+            Allocate Water
+          </button>
+        </div>
+      `).join('')}
+    </div>
+  `;
+
+  const recentAllocCard = recentRedists.length > 0 ? `
+    <div style="padding: 12px; background: #f3e5f5; border-radius: 4px; border-left: 4px solid #6a1b9a;">
+      <p style="margin: 0 0 8px 0; font-weight: bold; color: #6a1b9a;">📝 Recent Allocations</p>
+      ${recentRedists.map(r => `
+        <div style="padding: 8px 0; border-bottom: 1px solid #e0e0e0; font-size: 0.9em;">
+          <p style="margin: 0; color: #333;"><strong>${r.areaName}</strong></p>
+          <p style="margin: 0; color: #6a1b9a;">✓ ${r.gallonsAllocated} gallons @ ${r.displayTime}</p>
+        </div>
+      `).join('')}
+    </div>
+  ` : '';
+
+  redistributionContainer.innerHTML = impactCard + allocationCard + recentAllocCard;
+}
+
+/**
+ * Admin function: Allocate water to a community area
+ */
+function adminAllocateWater(areaIndex) {
+  if (areaIndex < 0 || areaIndex >= communityAreas.length) {
+    window.alert('Invalid area selection.');
+    return;
+  }
+
+  const area = communityAreas[areaIndex];
+  const totalSaved = calculateTotalWaterSaved();
+  const remainingAllocation = totalSaved - getTotalWaterAllocated();
+
+  if (remainingAllocation <= 0) {
+    window.alert('No water available for allocation.');
+    return;
+  }
+
+  const gallonsInput = window.prompt(
+    `Allocate water to ${area.name}\nAvailable: ${remainingAllocation} gallons\nEnter allocation amount:`,
+    Math.min(100, remainingAllocation).toString()
+  );
+
+  if (!gallonsInput) return;
+
+  const gallons = parseInt(gallonsInput);
+  if (isNaN(gallons) || gallons <= 0) {
+    window.alert('Invalid amount. Please enter a positive number.');
+    return;
+  }
+
+  if (gallons > remainingAllocation) {
+    window.alert(`Insufficient water. Available: ${remainingAllocation} gallons.`);
+    return;
+  }
+
+  if (allocateWaterToArea(area.id, gallons)) {
+    window.alert(
+      `✓ Water Allocated!\n\nArea: ${area.name}\nGallons: ${gallons}\nRemaining Available: ${remainingAllocation - gallons} gallons`
+    );
+    renderRedistributionDashboard();
+    simulateSystemAlerts();
+    updateRedistributionDashboard();
+  } else {
+    window.alert('Error allocating water. Please try again.');
+  }
 }
 
 function getRandomAlert() {
@@ -748,7 +1505,8 @@ function addHousehold() {
     alert: 'None',
     size: size,
     monthlyQuota: quotaBySize[size],
-    monthlyUsage: 0
+    monthlyUsage: 0,
+    outstandingBalance: 0
   });
 
   // Save households to localStorage
@@ -806,6 +1564,28 @@ function promptAdjustSize(householdIndex) {
   }
 }
 
+/**
+ * Admin function: Generate bill for a household
+ */
+function adminGenerateBill(householdIndex) {
+  const household = householdData[householdIndex];
+  const monthInput = window.prompt(
+    `Generate bill for ${household.name}\nEnter month (YYYY-MM) or leave blank for current month:`,
+    new Date().toISOString().slice(0, 7)
+  );
+  
+  if (monthInput === null) return;
+  
+  const billingRecord = generateBillingRecord(householdIndex, monthInput || new Date().toISOString().slice(0, 7));
+  
+  if (billingRecord) {
+    window.alert(
+      `✓ Bill Generated!\n\nHousehold: ${household.name}\nMonth: ${billingRecord.month}\nUsage: ${billingRecord.usageInGallons} gallons\nTariff: ${billingRecord.tariffName}\nAmount Due: $${billingRecord.amountDue.toFixed(2)}\n\nBill ID: ${billingRecord.id.substring(0, 20)}...`
+    );
+    viewReports();
+  }
+}
+
 function simulateUsageTick() {
   householdData.forEach(household => {
     const last = household.usageHistory[household.usageHistory.length - 1] || 0;
@@ -837,7 +1617,11 @@ if (addHouseholdBtn) {
 }
 
 if (viewReportsBtn) {
-  viewReportsBtn.addEventListener('click', viewReports);
+  viewReportsBtn.addEventListener('click', () => {
+    viewReports();
+    renderRevenueDashboard();
+    renderRedistributionDashboard();
+  });
 }
 
 if (refreshAlertsBtn) {
@@ -858,10 +1642,23 @@ function initializeApp() {
   loadFeedback();
   loadAlerts();
   loadLeaks();
+  loadBillingHistory();
+  loadPaymentHistory();
+  loadRedistributionHistory();
+  loadCommunities();
+
+  // Update household outstanding balances from billing records
+  householdData.forEach((household, index) => {
+    household.outstandingBalance = getOutstandingBalance(index);
+  });
+  saveHouseholds();
 
   // Render all data
   updateDashboardUsage();
+  updateRedistributionDashboard();
   renderHouseholdList();
+  renderRevenueDashboard();
+  renderRedistributionDashboard();
   
   // Display the most recent alert if any exist
   if (systemAlertsHistory.length > 0) {
@@ -883,4 +1680,5 @@ function initializeApp() {
 setInterval(simulateUsageTick, 5000);
 setInterval(simulateSystemAlerts, 10000);
 setInterval(runLeakCheck, 12000);
+setInterval(updateRedistributionDashboard, 8000);
 setTimeout(triggerLeakAlert, 9000);
