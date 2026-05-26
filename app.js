@@ -3,6 +3,47 @@ let billingHistory = [];  // Track all billing records
 let paymentHistory = [];  // Track all payments
 let redistributionHistory = [];  // Track water redistribution events
 let communityAreas = [];  // List of communities for redistribution
+let gamificationData = {};  // Track badges, streaks, and scores
+let streakHistory = [];  // Track streak events for each household
+
+const badgeDefinitions = {
+  'eco-warrior': {
+    name: 'Eco Warrior',
+    icon: '🌍',
+    description: 'Stay under quota for 5 consecutive days',
+    requirement: 'streak_5'
+  },
+  'water-sage': {
+    name: 'Water Sage',
+    icon: '💧',
+    description: 'Stay under quota for 10 consecutive days',
+    requirement: 'streak_10'
+  },
+  'conservation-hero': {
+    name: 'Conservation Hero',
+    icon: '🦸',
+    description: 'Stay under quota for 20 consecutive days',
+    requirement: 'streak_20'
+  },
+  'first-saver': {
+    name: 'First Saver',
+    icon: '⭐',
+    description: 'First time staying under quota',
+    requirement: 'first_under_quota'
+  },
+  'top-3-conservers': {
+    name: 'Top 3 Conserver',
+    icon: '🥇',
+    description: 'Ranked in top 3 conserving households',
+    requirement: 'top_3'
+  },
+  'power-saver': {
+    name: 'Power Saver',
+    icon: '⚡',
+    description: 'Save 50+ gallons in a day',
+    requirement: 'save_50_gallons'
+  }
+};
 
 const defaultCommunities = [
   { id: 'area-1', name: 'Low-Supply District Alpha', priority: 'High', currentAllocation: 0 },
@@ -11,9 +52,9 @@ const defaultCommunities = [
 ];
 
 const defaultHouseholds = [
-  { name: 'Household A', usageHistory: [18, 22, 20, 24, 19, 23, 21], status: 'Normal', alert: 'None', size: 'Medium', monthlyQuota: 500, monthlyUsage: 0, outstandingBalance: 0 },
-  { name: 'Household B', usageHistory: [25, 28, 24, 30, 27, 29, 31], status: 'High Usage', alert: 'Review', size: 'Large', monthlyQuota: 700, monthlyUsage: 0, outstandingBalance: 0 },
-  { name: 'Household C', usageHistory: [12, 14, 13, 15, 14, 13, 16], status: 'Low Tank', alert: 'Low Level', size: 'Small', monthlyQuota: 300, monthlyUsage: 0, outstandingBalance: 0 }
+  { name: 'Household A', usageHistory: [18, 22, 20, 24, 19, 23, 21], status: 'Normal', alert: 'None', size: 'Medium', monthlyQuota: 500, monthlyUsage: 0, outstandingBalance: 0, badges: [], currentStreak: 0, maxStreak: 0, conservationScore: 0 },
+  { name: 'Household B', usageHistory: [25, 28, 24, 30, 27, 29, 31], status: 'High Usage', alert: 'Review', size: 'Large', monthlyQuota: 700, monthlyUsage: 0, outstandingBalance: 0, badges: [], currentStreak: 0, maxStreak: 0, conservationScore: 0 },
+  { name: 'Household C', usageHistory: [12, 14, 13, 15, 14, 13, 16], status: 'Low Tank', alert: 'Low Level', size: 'Small', monthlyQuota: 300, monthlyUsage: 0, outstandingBalance: 0, badges: [], currentStreak: 0, maxStreak: 0, conservationScore: 0 }
 ];
 
 let systemAlertsHistory = [];
@@ -473,6 +514,197 @@ function getRecentRedistributions(limit = 5) {
 }
 
 // ============ End Water Redistribution ============
+
+// ============ Gamification & Badges ============
+
+/**
+ * Check if household stays under quota and update streaks
+ */
+function updateStreakAndBadges(householdIndex) {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    return;
+  }
+
+  const household = householdData[householdIndex];
+  const monthlyUsage = calculateMonthlyUsage(household);
+  const isUnderQuota = monthlyUsage < household.monthlyQuota;
+
+  // Update streak
+  if (isUnderQuota) {
+    household.currentStreak = (household.currentStreak || 0) + 1;
+    if (household.currentStreak > (household.maxStreak || 0)) {
+      household.maxStreak = household.currentStreak;
+    }
+    
+    // Award streak badges
+    checkAndAwardStreakBadges(householdIndex, household.currentStreak);
+  } else {
+    // Reset streak if over quota
+    if (household.currentStreak > 0) {
+      streakHistory.push({
+        householdIndex,
+        householdName: household.name,
+        streakLength: household.currentStreak,
+        endedAt: new Date().toISOString(),
+        displayTime: formatTime(new Date())
+      });
+      saveStreakHistory();
+    }
+    household.currentStreak = 0;
+  }
+
+  // Update conservation score (gallons saved * points)
+  const waterSavings = getHouseholdWaterSavings(householdIndex);
+  household.conservationScore = (household.conservationScore || 0) + waterSavings.saved;
+
+  // Check for other badge criteria
+  checkAndAwardBadges(householdIndex);
+
+  saveHouseholds();
+}
+
+/**
+ * Check and award streak-based badges
+ */
+function checkAndAwardStreakBadges(householdIndex, currentStreak) {
+  const household = householdData[householdIndex];
+  
+  const streakBadges = [
+    { id: 'eco-warrior', streakRequired: 5 },
+    { id: 'water-sage', streakRequired: 10 },
+    { id: 'conservation-hero', streakRequired: 20 }
+  ];
+
+  for (let badge of streakBadges) {
+    if (currentStreak >= badge.streakRequired && !household.badges.includes(badge.id)) {
+      awardBadge(householdIndex, badge.id);
+    }
+  }
+}
+
+/**
+ * Check and award achievement-based badges
+ */
+function checkAndAwardBadges(householdIndex) {
+  const household = householdData[householdIndex];
+  const waterSavings = getHouseholdWaterSavings(householdIndex);
+
+  // Power Saver badge (save 50+ gallons)
+  if (waterSavings.saved >= 50 && !household.badges.includes('power-saver')) {
+    awardBadge(householdIndex, 'power-saver');
+  }
+
+  // First Saver badge (first time under quota)
+  if (waterSavings.isConserving && !household.badges.includes('first-saver')) {
+    awardBadge(householdIndex, 'first-saver');
+  }
+
+  // Top 3 Conservers badge (checked separately via leaderboard)
+}
+
+/**
+ * Award a badge to a household
+ */
+function awardBadge(householdIndex, badgeId) {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    return false;
+  }
+
+  const household = householdData[householdIndex];
+  if (household.badges.includes(badgeId)) {
+    return false;  // Already has badge
+  }
+
+  const badge = badgeDefinitions[badgeId];
+  if (!badge) {
+    return false;
+  }
+
+  household.badges.push(badgeId);
+  saveHouseholds();
+
+  // Add system alert
+  systemAlertsHistory.push({
+    message: `🎉 ${household.name} earned the "${badge.name}" ${badge.icon} badge!`,
+    timestamp: new Date().toISOString(),
+    displayTime: formatTime(new Date())
+  });
+  saveAlerts();
+
+  return true;
+}
+
+/**
+ * Get household's badges with full details
+ */
+function getHouseholdBadges(householdIndex) {
+  if (householdIndex < 0 || householdIndex >= householdData.length) {
+    return [];
+  }
+
+  const household = householdData[householdIndex];
+  return household.badges.map(badgeId => badgeDefinitions[badgeId]);
+}
+
+/**
+ * Generate leaderboard of top conserving households
+ */
+function getConservationLeaderboard() {
+  const leaderboard = householdData.map((h, index) => ({
+    rank: 0,  // Will be set after sorting
+    householdIndex: index,
+    name: h.name,
+    conservationScore: h.conservationScore || 0,
+    currentStreak: h.currentStreak || 0,
+    maxStreak: h.maxStreak || 0,
+    badges: h.badges.length,
+    waterSaved: getHouseholdWaterSavings(index).saved,
+    percentageSaved: getHouseholdWaterSavings(index).percentage
+  }))
+  .sort((a, b) => {
+    // Sort by conservation score primarily, then max streak, then water saved
+    if (b.conservationScore !== a.conservationScore) {
+      return b.conservationScore - a.conservationScore;
+    }
+    if (b.maxStreak !== a.maxStreak) {
+      return b.maxStreak - a.maxStreak;
+    }
+    return b.waterSaved - a.waterSaved;
+  })
+  .map((h, index) => ({ ...h, rank: index + 1 }));
+
+  // Award top 3 badges
+  for (let i = 0; i < Math.min(3, leaderboard.length); i++) {
+    const household = householdData[leaderboard[i].householdIndex];
+    if (!household.badges.includes('top-3-conservers')) {
+      awardBadge(leaderboard[i].householdIndex, 'top-3-conservers');
+    }
+  }
+
+  return leaderboard;
+}
+
+/**
+ * Get summary statistics for gamification dashboard
+ */
+function getGamificationStats() {
+  const leaderboard = getConservationLeaderboard();
+  const totalBadgesAwarded = householdData.reduce((sum, h) => sum + h.badges.length, 0);
+  const householdsWithStreaks = householdData.filter(h => h.currentStreak > 0).length;
+  const avgConservationScore = householdData.length > 0
+    ? Math.round(householdData.reduce((sum, h) => sum + (h.conservationScore || 0), 0) / householdData.length)
+    : 0;
+
+  return {
+    totalBadgesAwarded,
+    householdsWithStreaks,
+    avgConservationScore,
+    topConserver: leaderboard[0] || null,
+    leaderboard
+  };
+}
+
+// ============ End Gamification ============
 
 // ============ Leak Detection & Management ============
 
