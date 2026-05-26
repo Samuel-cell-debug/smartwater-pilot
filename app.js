@@ -200,8 +200,8 @@ function detectLeakEvent() {
   // Pick a random household
   if (householdData.length === 0) return null;
   
-  const randomHousehold = householdData[Math.floor(Math.random() * householdData.length)];
-  const householdIndex = householdData.indexOf(randomHousehold);
+  const householdIndex = Math.floor(Math.random() * householdData.length);
+  const randomHousehold = householdData[householdIndex];
   
   // Check if household already has active leak
   const existingLeak = getActiveLeakForHousehold(householdIndex);
@@ -211,7 +211,7 @@ function detectLeakEvent() {
   const leakLocation = leakLocations[Math.floor(Math.random() * leakLocations.length)];
   const leakEvent = {
     id: `leak-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`,
-    householdIndex: householdIndex,
+    householdIndex,
     householdName: randomHousehold.name,
     location: leakLocation,
     severity: ['Minor', 'Moderate', 'Severe'][Math.floor(Math.random() * 3)],
@@ -228,6 +228,48 @@ function detectLeakEvent() {
   updateHouseholdLeakStatus(householdIndex, leakEvent);
   
   return leakEvent;
+}
+
+function displayLeakNotification(leakEvent) {
+  if (!alertContent) return;
+  alertContent.classList.remove('alert-clear');
+  alertContent.classList.add('alert-warning');
+  alertContent.innerHTML = `
+    <p class="alert-state">🚨 ${leakEvent.severity.toUpperCase()} leak detected in ${leakEvent.householdName}</p>
+    <p class="subtext">Location: ${leakEvent.location} | Detected at ${leakEvent.detectedTime}</p>
+    <p class="subtext">Use the admin panel to resolve this leak.</p>
+  `;
+  const alertTimestamp = formatTime(new Date());
+  systemAlertsHistory.push({
+    message: `Leak: ${leakEvent.householdName} - ${leakEvent.location}`,
+    timestamp: new Date().toISOString(),
+    displayTime: alertTimestamp
+  });
+  saveAlerts();
+}
+
+function resolveLeakAndRefresh(leakId) {
+  if (resolveLeakEvent(leakId)) {
+    renderHouseholdList();
+    simulateSystemAlerts();
+    if (alertContent) {
+      alertContent.classList.remove('alert-warning');
+      alertContent.classList.add('alert-clear');
+      alertContent.innerHTML = `
+        <p class="alert-state">Leak resolved.</p>
+        <p class="subtext">The dashboard has been updated.</p>
+      `;
+    }
+  }
+}
+
+function runLeakCheck() {
+  const leakEvent = detectLeakEvent();
+  if (leakEvent) {
+    displayLeakNotification(leakEvent);
+    renderHouseholdList();
+    simulateSystemAlerts();
+  }
 }
 
 /**
@@ -497,6 +539,14 @@ function updateDashboardUsage() {
 }
 
 function triggerLeakAlert() {
+  const leakEvent = detectLeakEvent();
+  if (leakEvent) {
+    displayLeakNotification(leakEvent);
+    renderHouseholdList();
+    simulateSystemAlerts();
+    return;
+  }
+
   if (!alertContent) return;
   const randomHouse = householdData[Math.floor(Math.random() * householdData.length)] || { name: 'Household', status: 'Unknown' };
   alertContent.classList.remove('alert-clear');
@@ -630,6 +680,26 @@ function getRandomAlert() {
 
 function simulateSystemAlerts() {
   if (!systemAlertsEl) return;
+
+  // Check for active leak alerts first
+  const leakInfo = generateLeakAlerts();
+  if (leakInfo) {
+    const alertTimestamp = formatTime(new Date());
+    const alertText = `${leakInfo.message} — ${leakInfo.details}`;
+    systemAlertsHistory.push({
+      message: alertText,
+      timestamp: new Date().toISOString(),
+      displayTime: alertTimestamp
+    });
+    saveAlerts();
+
+    systemAlertsEl.innerHTML = `
+      <p class="alert-state">${leakInfo.message}</p>
+      <p class="subtext">${leakInfo.details}</p>
+      <p class="subtext">Updated at ${alertTimestamp}</p>
+    `;
+    return;
+  }
 
   // Check for quota warnings from any household
   let quotaWarningAlert = null;
@@ -787,6 +857,7 @@ function initializeApp() {
   loadHouseholds();
   loadFeedback();
   loadAlerts();
+  loadLeaks();
 
   // Render all data
   updateDashboardUsage();
@@ -804,8 +875,12 @@ function initializeApp() {
   } else {
     simulateSystemAlerts();
   }
+
+  // Render any existing active leaks
+  renderHouseholdList();
 }
 
 setInterval(simulateUsageTick, 5000);
 setInterval(simulateSystemAlerts, 10000);
+setInterval(runLeakCheck, 12000);
 setTimeout(triggerLeakAlert, 9000);
