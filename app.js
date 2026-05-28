@@ -57,6 +57,119 @@ const defaultHouseholds = [
   { name: 'Household C', usageHistory: [12, 14, 13, 15, 14, 13, 16], status: 'Low Tank', alert: 'Low Level', size: 'Small', monthlyQuota: 300, monthlyUsage: 0, outstandingBalance: 0, badges: [], currentStreak: 0, maxStreak: 0, conservationScore: 0 }
 ];
 
+/**
+ * Service layer for billing and revenue reporting.
+ */
+class BillingService {
+  constructor() {
+    this.billingRecords = [];
+    this.householdUsage = {
+      'household-a': 180,
+      'household-b': 320,
+      'household-c': 95,
+      'household-d': 240,
+      'household-e': 410,
+    };
+    this.mobileMoneyFeeRate = 0.03;
+  }
+
+  /**
+   * Generate a monthly bill for a household.
+   * Uses tiered pricing and includes a Mobile Money processing fee.
+   */
+  generateMonthlyBill(householdId) {
+    const usage = this.householdUsage[householdId] || 0;
+    const tier1Rate = 1.75;
+    const tier2Rate = 2.50;
+    const tier3Rate = 3.25;
+    const tier1Limit = 100;
+    const tier2Limit = 200;
+    let remaining = usage;
+    let amount = 0;
+
+    if (remaining > 0) {
+      const tier1Usage = Math.min(remaining, tier1Limit);
+      amount += tier1Usage * tier1Rate;
+      remaining -= tier1Usage;
+    }
+
+    if (remaining > 0) {
+      const tier2Usage = Math.min(remaining, tier2Limit - tier1Limit);
+      amount += tier2Usage * tier2Rate;
+      remaining -= tier2Usage;
+    }
+
+    if (remaining > 0) {
+      amount += remaining * tier3Rate;
+    }
+
+    const fee = amount * this.mobileMoneyFeeRate;
+    const totalAmount = Math.round((amount + fee) * 100) / 100;
+    const record = {
+      id: `bill-${Date.now()}-${Math.floor(Math.random() * 1000)}`,
+      householdId,
+      amount: totalAmount,
+      status: 'Pending',
+      date: new Date().toISOString().slice(0, 10),
+      paymentMethod: 'Mobile Money'
+    };
+
+    this.billingRecords.unshift(record);
+    return record;
+  }
+
+  /**
+   * Simulate payment verification for a Mobile Money transaction.
+   */
+  processPayment(householdId, amount) {
+    const pendingRecord = this.billingRecords.find(
+      record => record.householdId === householdId && record.status === 'Pending'
+    );
+    if (!pendingRecord || amount < pendingRecord.amount) {
+      return false;
+    }
+    const isVerified = Math.random() > 0.12;
+    pendingRecord.status = isVerified ? 'Paid' : 'Failed';
+    return isVerified;
+  }
+
+  /**
+   * Aggregate revenue and pending payment metrics.
+   */
+  getRevenueSummary() {
+    const totalRevenue = this.billingRecords
+      .filter(record => record.status === 'Paid')
+      .reduce((sum, record) => sum + record.amount, 0);
+    const pendingPayments = this.billingRecords
+      .filter(record => record.status === 'Pending')
+      .reduce((sum, record) => sum + record.amount, 0);
+    const totalInvoices = this.billingRecords.length;
+    const paidInvoices = this.billingRecords.filter(record => record.status === 'Paid').length;
+    const activeHouseholds = new Set(this.billingRecords.map(record => record.householdId)).size;
+    return {
+      totalRevenue: Math.round(totalRevenue * 100) / 100,
+      pendingPayments: Math.round(pendingPayments * 100) / 100,
+      collectionRate: totalInvoices === 0 ? 0 : Math.round((paidInvoices / totalInvoices) * 100),
+      activeHouseholds
+    };
+  }
+
+  formatCurrency(amount) {
+    return new Intl.NumberFormat('en-GH', {
+      style: 'currency',
+      currency: 'GHS',
+      minimumFractionDigits: 2,
+      maximumFractionDigits: 2
+    }).format(amount);
+  }
+
+  getRecentTransactions() {
+    return this.billingRecords.slice(0, 6);
+  }
+}
+
+const billingService = new BillingService();
+
 let systemAlertsHistory = [];
 let feedbackHistory = [];
 let leakEvents = [];  // Track active and historical leak events
@@ -901,6 +1014,73 @@ const householdReports = document.getElementById('householdReports');
 const systemAlertsEl = document.getElementById('systemAlerts');
 const revenueContainer = document.getElementById('revenueContainer');
 const redistributionContainer = document.getElementById('redistributionContainer');
+const totalRevenueValue = document.getElementById('totalRevenueValue');
+const pendingPaymentsValue = document.getElementById('pendingPaymentsValue');
+const activeHouseholdsValue = document.getElementById('activeHouseholdsValue');
+const billingTransactionsBody = document.getElementById('billingTransactionsBody');
+
+/**
+ * Determine status badge class name for transaction rows.
+ */
+function getStatusBadgeClass(status) {
+  if (status === 'Paid') return 'status-paid';
+  if (status === 'Pending') return 'status-pending';
+  if (status === 'Failed') return 'status-failed';
+  return '';
+}
+
+/**
+ * Render the billing dashboard controls and transaction rows.
+ */
+function renderBillingDashboard() {
+  if (!totalRevenueValue || !pendingPaymentsValue || !activeHouseholdsValue || !billingTransactionsBody) {
+    return;
+  }
+
+  const summary = billingService.getRevenueSummary();
+  totalRevenueValue.textContent = billingService.formatCurrency(summary.totalRevenue);
+  pendingPaymentsValue.textContent = billingService.formatCurrency(summary.pendingPayments);
+  activeHouseholdsValue.textContent = summary.activeHouseholds.toString();
+
+  const transactions = billingService.getRecentTransactions();
+  if (transactions.length === 0) {
+    billingTransactionsBody.innerHTML = '<tr><td colspan="5">No billing activity yet.</td></tr>';
+    return;
+  }
+
+  billingTransactionsBody.innerHTML = transactions.map(record => `
+    <tr>
+      <td>${record.date}</td>
+      <td>${record.householdId.replace('-', ' ').replace(/\b\w/g, c => c.toUpperCase())}</td>
+      <td>${billingService.formatCurrency(record.amount)}</td>
+      <td>${record.paymentMethod}</td>
+      <td><span class="status-badge ${getStatusBadgeClass(record.status)}">${record.status}</span></td>
+    </tr>
+  `).join('');
+}
+
+/**
+ * Seed sample billing records for active households when the admin dashboard loads.
+ */
+function initializeBillingDashboard() {
+  if (!billingTransactionsBody) {
+    return;
+  }
+
+  if (billingService.getRecentTransactions().length > 0) {
+    renderBillingDashboard();
+    return;
+  }
+
+  householdData.forEach(household => {
+    const householdId = household.name.toLowerCase().replace(/\s+/g, '-');
+    billingService.generateMonthlyBill(householdId);
+  });
+
+  billingService.processPayment('household-a', Number.MAX_VALUE);
+  billingService.processPayment('household-b', Number.MAX_VALUE);
+  renderBillingDashboard();
+}
 
 // ============ localStorage Persistence Functions ============
 
@@ -1891,6 +2071,7 @@ function initializeApp() {
   renderHouseholdList();
   renderRevenueDashboard();
   renderRedistributionDashboard();
+  initializeBillingDashboard();
   
   // Display the most recent alert if any exist
   if (systemAlertsHistory.length > 0) {

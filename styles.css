@@ -191,6 +191,102 @@ button:not(.secondary) {
   color: var(--muted);
 }
 
+.billing-dashboard-card {
+  display: grid;
+  gap: 22px;
+}
+
+.metrics-grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 16px;
+}
+
+.stat-card {
+  background: #f7fbff;
+  border: 1px solid rgba(0, 119, 204, 0.14);
+  border-radius: 18px;
+  padding: 18px;
+}
+
+.stat-label {
+  margin: 0 0 10px;
+  color: var(--muted);
+  font-size: 0.95rem;
+}
+
+.stat-value {
+  margin: 0;
+  font-size: 1.8rem;
+  font-weight: 700;
+  color: var(--primary);
+}
+
+.transactions-panel {
+  overflow-x: auto;
+}
+
+.transactions-table {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.transactions-table th,
+.transactions-table td {
+  padding: 12px 14px;
+  text-align: left;
+  border-bottom: 1px solid rgba(0, 119, 204, 0.12);
+}
+
+.transactions-table th {
+  font-size: 0.95rem;
+  color: var(--muted);
+}
+
+.status-badge {
+  display: inline-flex;
+  align-items: center;
+  padding: 6px 10px;
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+}
+
+.status-paid {
+  background: rgba(76, 175, 80, 0.14);
+  color: #2e7d32;
+}
+
+.status-pending {
+  background: rgba(255, 193, 7, 0.14);
+  color: #a67c00;
+}
+
+.status-failed {
+  background: rgba(244, 67, 54, 0.14);
+  color: #b71c1c;
+}
+
+.chart-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.chart-placeholder {
+  min-height: 260px;
+  border-radius: 18px;
+  background: #eef6ff;
+  border: 1px dashed rgba(0, 119, 204, 0.2);
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.chart-placeholder canvas {
+  width: 100%;
+  max-width: 100%;
+}
+
 .feedback-card label {
   display: block;
   margin-top: 18px;
