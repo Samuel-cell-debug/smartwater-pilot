@@ -35,6 +35,12 @@ The project aims to curb household water wastage and preserve resources so water
 ## Project Structure
 
 
+## Local Setup
+
+- Run `npm start` in the project root.
+- Open the main dashboard at `http://localhost:3000`.
+- Open the admin dashboard separately at `http://localhost:3001`.
+
 ---
 
 ## Features Implemented
